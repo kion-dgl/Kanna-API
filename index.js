@@ -1,21 +1,10 @@
-import { askGrok, writePost, readPost } from './src/xapi.js';
+import { initializeTwitterClient } from './src/xinit.js';
+import { askKanna } from './src/grok.js';
 
-async function main() {
-  try {
-    // Get a response from Grok
-    // const grokResponse = await askGrok("Introduce yourself (keep it short)");
-    // console.log('Grok says:', grokResponse);
+const client = await initializeTwitterClient();
+const intro = await askKanna("Say hi (keep it short)")
+console.log(intro);
 
-    // Post the response to Twitter
-    //const tweetId = await writePost(grokResponse);
-    const tweetId = await writePost("hello");
-    console.log('Posted tweet with ID:', tweetId);
-
-    // Read back the posted tweet
-    await readPost(tweetId);
-  } catch (error) {
-    console.error('Error in main:', error);
-  }
-}
-
-main();
+const tweet = await client.v2.tweet(intro);
+console.log('Tweet posted successfully!');
+console.log('Tweet ID:', tweet.data.id);
