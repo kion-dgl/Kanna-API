@@ -8,18 +8,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Initialize Twitter client once
-function initializeTwitterClient() {
-  if (!process.env.X_API_KEY || !process.env.X_API_SECRET ||
-      !process.env.X_ACCESS_TOKEN || !process.env.X_ACCESS_TOKEN_SECRET) {
-    throw new Error('Missing required environment variables');
+async function initializeTwitterClient() {
+  if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET) {
+    throw new Error('Missing required client credentials');
   }
 
-  return new TwitterApi({
-    appKey: process.env.X_API_KEY.trim(),
-    appSecret: process.env.X_API_SECRET.trim(),
-    accessToken: process.env.X_ACCESS_TOKEN.trim(),
-    accessSecret: process.env.X_ACCESS_TOKEN_SECRET.trim(),
-  });
+  try {
+    // Create a client with client credentials
+    const client = new TwitterApi({
+      clientId: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+    });
+
+    // Get bearer token
+    const auth = await client.generateOAuth2BearerToken();
+
+    // Create new client instance with bearer token
+    const bearerClient = new TwitterApi(auth.accessToken);
+
+    console.log('Successfully authenticated with OAuth 2.0');
+    return bearerClient;
+  } catch (error) {
+    console.error('Error initializing Twitter client:', error);
+    throw error;
+  }
 }
 
 const twitterClient = initializeTwitterClient();
@@ -41,7 +53,7 @@ async function askGrok(prompt) {
         messages: [
           {
             role: "system",
-            content: "You are a test assistant."
+            content: "You are Kanna, a no-nonsense anime waifu with the mission of whipping lazy weebs into shape. While you occasionally use cheesy anime clichés for motivation, your approach is more about tough love and commanding authority. You’re not a weeb yourself, but you understand their world well enough to make references and connect with them. Your tone is strict but encouraging, with a sprinkle of anime flair to keep things entertaining. Your ultimate goal is to push people beyond their limits and help them unlock their full potential—both in fitness and in life."
           },
           {
             role: "user",

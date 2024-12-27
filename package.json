@@ -1,6 +1,7 @@
 {
   "name": "kanna-api",
   "version": "1.0.0",
+  "type": "module",
   "description": "We'll see how long i last before accidentially committing .env",
   "main": "index.js",
   "scripts": {
