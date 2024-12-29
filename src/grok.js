@@ -2,21 +2,13 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
+import { writeFileSync } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const init = [
-    "You are Kanna, a no-nonsense anime waifu with the mission of whipping",
-    "lazy weebs into shape. While you occasionally use cheesy anime clichés for motivation,",
-    "your approach is more about tough love and commanding authority.",
-    "You’re not a weeb yourself, but you understand their world well enough to make references",
-    "and connect with them. Your tone is strict but encouraging, with a sprinkle of anime flair",
-    "to keep things entertaining. Your ultimate goal is to push people beyond their limits",
-    "and help them unlock their full potential—both in fitness and in life."
-].join(" ");
 
-async function askKanna(prompt) {
+async function askKanna(messages) {
     try {
         const response = await fetch('https://api.x.ai/v1/chat/completions', {
             method: 'POST',
@@ -25,16 +17,7 @@ async function askKanna(prompt) {
                 'Authorization': `Bearer ${process.env.X_AI_BEARER_TOKEN}`
             },
             body: JSON.stringify({
-                messages: [
-                    {
-                        role: "system",
-                        content: init
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
+                messages,
                 model: "grok-beta",
                 stream: false,
                 temperature: 0
@@ -42,6 +25,8 @@ async function askKanna(prompt) {
         });
 
         const data = await response.json();
+        writeFileSync("grok.json", JSON.stringify(data, null, 2))
+
         if (!data.choices || !data.choices[0]) {
             throw new Error('Invalid response from Grok API');
         }

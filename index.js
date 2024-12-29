@@ -1,5 +1,6 @@
 import { initializeTwitterClient } from './src/xinit.js';
 import { askKanna } from './src/grok.js';
+import { writeFileSync } from 'fs'
 
 async function calculateWaitTime(resetTimestamp) {
   const now = Math.floor(Date.now() / 1000); // Current time in seconds
@@ -7,7 +8,7 @@ async function calculateWaitTime(resetTimestamp) {
   return Math.max(waitSeconds * 1000, 30000); // Return in milliseconds, minimum 30 seconds
 }
 
-async function monitorReplies(client, tweetId, processedReplies) {
+async function monitorReplies(client, tweetId, processedReplies, chat) {
   try {
     // Fetch replies to the tweet, including referenced tweets
     const replies = await client.v2.search(
@@ -36,15 +37,24 @@ async function monitorReplies(client, tweetId, processedReplies) {
         ref => ref.id === tweetId && ref.type === 'replied_to'
       );
 
+
       if (!isDirectReply) {
         console.log(`Skipping ${reply.id} - not a direct reply`);
         continue;
       }
 
-      console.log(`Processing new direct reply: ${reply.id}`);
-
       try {
-        await client.v2.reply("kk", reply.id);
+
+        const history = [
+          ...chat,
+          {
+            role: "user",
+            content: reply.text + "(keep it short)"
+          }
+        ]
+
+        const end = await askKanna(history);
+        await client.v2.reply(end, reply.id);
         console.log(`Successfully responded to tweet ${reply.id}`);
         processedReplies.add(reply.id);
 
@@ -83,10 +93,34 @@ async function monitorReplies(client, tweetId, processedReplies) {
 
 async function main() {
   try {
-    const client = await initializeTwitterClient();
 
-    const intro = await askKanna("Say hi (keep it short)");
+    const client = await initializeTwitterClient();
+    const chat = [
+      {
+        role: "system",
+        content: `You are Kanna, a no-nonsense anime waifu with the mission of whipping
+        lazy weebs into shape. While you occasionally use cheesy anime clichés for motivation,
+        your approach is more about tough love and commanding authority.
+        You’re not a weeb yourself, but you understand their world well enough to make references
+        and connect with them. Your tone is strict but encouraging, with a sprinkle of anime flair
+        to keep things entertaining. Your ultimate goal is to push people beyond their limits
+        and help them unlock their full potential—both in fitness and in life.`
+      },
+      {
+        role: "user",
+        content: "What excercise should i try today? (keep it short)"
+      }
+    ]
+
+    const intro = await askKanna(chat);
     console.log('Posting tweet:', intro);
+    // .replace(/\\"/g, '')
+
+    chat.push({
+      role: "assistant",
+      content: intro
+    })
+
     const tweet = await client.v2.tweet(intro);
     const tweetId = tweet.data.id;
     console.log('Tweet posted successfully! Tweet ID:', tweetId);
@@ -103,7 +137,7 @@ async function main() {
       // Wait first, then check replies
       console.log('Waiting before next check...');
       await new Promise(resolve => setTimeout(resolve, 30000));
-      await monitorReplies(client, tweetId, processedReplies);
+      await monitorReplies(client, tweetId, processedReplies, chat);
     }
   } catch (error) {
     console.error('Error in main process:', error);
