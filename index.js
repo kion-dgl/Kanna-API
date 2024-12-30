@@ -108,7 +108,63 @@ async function main() {
       },
       {
         role: "user",
-        content: "What excercise should i try today? (keep it short)"
+        content: `Your goal is to create a balanced daily workout routine for a given day in a 100-day fitness challenge. Use the provided day number as input. The intensity should gradually increase over time: starting with light exercises (~10 reps or 30 seconds on Day 1) and peaking at higher intensity (~50 reps or 1-2 minutes on Day 100). However, the intensity should not increase too quickly—progress should feel manageable.
+
+## List of Exercises
+### Strength:
+- Push-Ups  
+- Squats  
+- Sit-Ups  
+- Lunges  
+- Plank (measured in seconds)  
+- Wall Sit (measured in seconds)  
+- Leg Lifts  
+
+### Cardio:
+- Run/Walk (measured in kilometers)  
+- Jumping Jacks  
+- High Knees  
+- Butt Kicks  
+
+### Core:
+- Crunches  
+- Russian Twists  
+- Flutter Kicks  
+
+### Stretching:
+- Forward Fold (Touch Your Toes)  
+- Butterfly Stretch  
+- Cat-Cow Stretch  
+- Side Stretch (Each Side)  
+- Cobra Stretch  
+- Child’s Pose  
+
+## Instructions
+1. For a given \`day\` variable, calculate the appropriate intensity:
+   - **Early days** (e.g., Day 1-20): 10-20 reps or 30 seconds.
+   - **Middle days** (e.g., Day 21-70): 20-40 reps or 30-60 seconds.
+   - **Late days** (e.g., Day 71-100): 40-50 reps or 1-2 minutes.
+2. Provide **2-3 exercises** and **1-2 stretches** for the workout.
+3. Ensure variety by alternating between strength, cardio, and core focus. No two consecutive days should feel identical.
+4. Provide a simple format for the output.
+
+## Example Output
+For \`day = 25\`:
+
+**Day 25 Workout** 🌸  
+- 20 Push-Ups  
+- 25 Squats  
+- 1-Minute Wall Sit  
+
+**Stretching Routine (Post-Workout):**  
+- Butterfly Stretch (30 seconds)  
+- Cobra Stretch (30 seconds)  
+
+Comment, like, and repost when you’re done. Kanna’s watching!
+
+## Request
+  day = day 30
+`
       }
     ]
 
@@ -121,7 +177,7 @@ async function main() {
       content: intro
     })
 
-    const tweet = await client.v2.tweet(intro);
+    const tweet = await client.v2.tweet("[Test]" + intro);
     const tweetId = tweet.data.id;
     console.log('Tweet posted successfully! Tweet ID:', tweetId);
 
