@@ -13,6 +13,8 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "node-fetch": "^3.3.2",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "ts-dedent": "^2.2.0",
     "twitter-api-v2": "^1.18.2"
   }
