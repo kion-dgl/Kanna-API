@@ -38,7 +38,7 @@ func main() {
 	createTableQuery := `
 		CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			username TEXT NOT NULL,
+			username TEXT NOT NULL UNIQUE,
 			start_date DATE NOT NULL
 		);`
 	_, err = db.Exec(createTableQuery)
@@ -47,8 +47,8 @@ func main() {
 	}
 
 	// Insert a record
-	insertQuery := `INSERT INTO users (username, start_date) VALUES (?, ?);`
-	_, err = db.Exec(insertQuery, "@wagieweeb", "2024-12-06")
+	insertQuery := `INSERT OR IGNORE INTO users (username, start_date) VALUES (?, ?);`
+	_, err = db.Exec(insertQuery, "wagieweeb", "2024-12-06")
 	if err != nil {
 		log.Fatalf("Failed to insert record: %v", err)
 	}
