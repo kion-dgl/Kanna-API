@@ -1,4 +1,4 @@
-name: Write Post Daily Workflow
+name: Write Daily Post
 
 on:
   push:
@@ -25,14 +25,15 @@ jobs:
         run: go mod tidy
 
       - name: Write Post
+        working-directory: write-post
         env:
           TURSO_DB_URL: ${{ secrets.TURSO_DB_URL }}
           TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
-        run: go run write-post/main.go
+        run: go run main.go
 
       - name: Upload Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: write-artifact
-          path: artifact.json
+          path: write-post/artifact.json
