@@ -18,13 +18,15 @@ jobs:
           go-version: "1.23"
 
       - name: Install dependencies
+        working-directory: write-post
         run: go mod tidy
 
       - name: Write Post
+        working-directory: write-post
         env:
           TURSO_DB_URL: ${{ secrets.TURSO_DB_URL }}
           TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
-        run: go run write-post/main.go
+        run: go run main.go
 
       - name: Upload Artifact
         if: always()
