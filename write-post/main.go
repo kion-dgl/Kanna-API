@@ -12,12 +12,15 @@ import (
 )
 
 func main() {
-	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+	// Optionally load .env file if it exists (for local testing)
+	if _, err := os.Stat(".env"); err == nil {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatalf("Error loading .env file: %v", err)
+		}
 	}
 
+	// Read environment variables
 	dbURL := os.Getenv("TURSO_DB_URL")
 	token := os.Getenv("TURSO_TOKEN")
 
