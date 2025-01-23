@@ -162,5 +162,92 @@ func main() {
 			log.Printf("Received non-OK run response for user %v: %s", user["username"], runResp.Status)
 			continue
 		}
+
+		// Poll for run completion
+		var runResponse map[string]interface{}
+		err = json.Unmarshal(runBody, &runResponse)
+		if err != nil {
+			log.Printf("Failed to unmarshal run response for user %v: %v", user["username"], err)
+			continue
+		}
+
+		runID, ok := runResponse["id"].(string)
+		if !ok {
+			log.Printf("Run ID missing for user %v", user["username"])
+			continue
+		}
+
+		pollURL := fmt.Sprintf("https://api.openai.com/v1/threads/%s/runs/%s", threadID, runID)
+		for {
+			pollReq, err := http.NewRequest("GET", pollURL, nil)
+			if err != nil {
+				log.Printf("Failed to create poll request for run %v: %v", runID, err)
+				break
+			}
+			pollReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openAPIToken))
+			pollReq.Header.Set("OpenAI-Beta", "assistants=v2")
+
+			pollResp, err := http.DefaultClient.Do(pollReq)
+			if err != nil {
+				log.Printf("Failed to poll run status for run %v: %v", runID, err)
+				break
+			}
+			defer pollResp.Body.Close()
+
+			pollBody, err := io.ReadAll(pollResp.Body)
+			if err != nil {
+				log.Printf("Failed to read poll response body for run %v: %v", runID, err)
+				break
+			}
+
+			var pollResult map[string]interface{}
+			if err := json.Unmarshal(pollBody, &pollResult); err != nil {
+				log.Printf("Failed to unmarshal poll response for run %v: %v", runID, err)
+				break
+			}
+
+			status, ok := pollResult["status"].(string)
+			if !ok {
+				log.Printf("Run status missing for run %v", runID)
+				break
+			}
+
+			log.Printf("Run status for %v: %s", runID, status)
+
+			if status == "completed" {
+				log.Printf("Run %v completed successfully!", runID)
+
+				// Fetch the thread state to get the response
+				threadReq, err := http.NewRequest("GET", fmt.Sprintf("https://api.openai.com/v1/threads/%s", threadID), nil)
+				if err != nil {
+					log.Printf("Failed to create thread request for run %v: %v", runID, err)
+					break
+				}
+				threadReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openAPIToken))
+				threadReq.Header.Set("OpenAI-Beta", "assistants=v2")
+
+				threadResp, err := http.DefaultClient.Do(threadReq)
+				if err != nil {
+					log.Printf("Failed to fetch thread state for run %v: %v", runID, err)
+					break
+				}
+				defer threadResp.Body.Close()
+
+				threadBody, err := io.ReadAll(threadResp.Body)
+				if err != nil {
+					log.Printf("Failed to read thread response body for run %v: %v", runID, err)
+					break
+				}
+
+				log.Printf("Thread state for user %v: %s", user["username"], string(threadBody))
+				break
+			} else if status == "failed" || status == "cancelled" {
+				log.Printf("Run %v did not complete successfully: %s", runID, status)
+				break
+			}
+
+			// Wait before polling again
+			time.Sleep(2 * time.Second)
+		}
 	}
 }
