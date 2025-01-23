@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
@@ -23,9 +27,10 @@ func main() {
 	// Read environment variables
 	dbURL := os.Getenv("TURSO_DB_URL")
 	token := os.Getenv("TURSO_TOKEN")
+	openAPIToken := os.Getenv("OPENAPI_TOKEN")
 
-	if dbURL == "" || token == "" {
-		log.Fatal("Database URL or authentication token not found in environment variables")
+	if dbURL == "" || token == "" || openAPIToken == "" {
+		log.Fatal("Database URL, authentication token, or OpenAPI token not found in environment variables")
 	}
 
 	// Append token as a query parameter
@@ -37,25 +42,6 @@ func main() {
 	defer db.Close()
 	log.Println("Connected to Turso database successfully!")
 
-	// Create the table
-	createTableQuery := `
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			username TEXT NOT NULL UNIQUE,
-			start_date DATE NOT NULL
-		);`
-	_, err = db.Exec(createTableQuery)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
-
-	// Insert a record
-	insertQuery := `INSERT OR IGNORE INTO users (username, start_date) VALUES (?, ?);`
-	_, err = db.Exec(insertQuery, "wagieweeb", "2024-12-06")
-	if err != nil {
-		log.Fatalf("Failed to insert record: %v", err)
-	}
-
 	// Select all records
 	selectQuery := `SELECT id, username, start_date FROM users;`
 	rows, err := db.Query(selectQuery)
@@ -64,7 +50,6 @@ func main() {
 	}
 	defer rows.Close()
 
-	// Fetch all rows and store in a slice
 	var results []map[string]interface{}
 	for rows.Next() {
 		var id int
@@ -80,18 +65,102 @@ func main() {
 		})
 	}
 
-	// Convert results to JSON
-	output, err := json.MarshalIndent(results, "", "  ")
-	if err != nil {
-		log.Fatalf("Failed to marshal results: %v", err)
-	}
+	assistantID := "asst_IUjxjQhjPtaDpKO5yCVs2Ez3"
+	threadID := "thread_a9x4t7O5pQbO0dPtkZMPBWKw"
 
-	// Save the JSON output as an artifact
-	outputFile := "artifact.json"
-	err = os.WriteFile(outputFile, output, 0644)
-	if err != nil {
-		log.Fatalf("Failed to write artifact: %v", err)
-	}
+	// Loop over the list of results
+	for _, user := range results {
+		startDate, err := time.Parse("2006-01-02", user["start_date"].(string))
+		if err != nil {
+			log.Printf("Failed to parse start_date for user %v: %v", user["username"], err)
+			continue
+		}
 
-	fmt.Printf("Artifact saved to %s\n", outputFile)
+		daysElapsed := int(time.Since(startDate).Hours() / 24)
+		messageContent := fmt.Sprintf("day %d", daysElapsed)
+
+		// Send message
+		messagePayload := map[string]interface{}{
+			"role": "user",
+			"content": []map[string]interface{}{
+				{
+					"type": "text",
+					"text": messageContent,
+				},
+			},
+		}
+		messagePayloadBytes, err := json.Marshal(messagePayload)
+		if err != nil {
+			log.Printf("Failed to marshal message payload for user %v: %v", user["username"], err)
+			continue
+		}
+
+		messageReq, err := http.NewRequest("POST", fmt.Sprintf("https://api.openai.com/v1/threads/%s/messages", threadID), bytes.NewBuffer(messagePayloadBytes))
+		if err != nil {
+			log.Printf("Failed to create message request for user %v: %v", user["username"], err)
+			continue
+		}
+		messageReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openAPIToken))
+		messageReq.Header.Set("Content-Type", "application/json")
+		messageReq.Header.Set("OpenAI-Beta", "assistants=v2")
+
+		messageResp, err := http.DefaultClient.Do(messageReq)
+		if err != nil {
+			log.Printf("Failed to send message request for user %v: %v", user["username"], err)
+			continue
+		}
+		defer messageResp.Body.Close()
+
+		messageBody, err := io.ReadAll(messageResp.Body)
+		if err != nil {
+			log.Printf("Failed to read message response body for user %v: %v", user["username"], err)
+			continue
+		}
+
+		log.Printf("Message response for user %v: %s", user["username"], string(messageBody))
+
+		if messageResp.StatusCode != http.StatusOK {
+			log.Printf("Received non-OK message response for user %v: %s", user["username"], messageResp.Status)
+			continue
+		}
+
+		// Trigger run
+		runPayload := map[string]interface{}{
+			"assistant_id": assistantID,
+		}
+		runPayloadBytes, err := json.Marshal(runPayload)
+		if err != nil {
+			log.Printf("Failed to marshal run payload for user %v: %v", user["username"], err)
+			continue
+		}
+
+		runReq, err := http.NewRequest("POST", fmt.Sprintf("https://api.openai.com/v1/threads/%s/runs", threadID), bytes.NewBuffer(runPayloadBytes))
+		if err != nil {
+			log.Printf("Failed to create run request for user %v: %v", user["username"], err)
+			continue
+		}
+		runReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openAPIToken))
+		runReq.Header.Set("Content-Type", "application/json")
+		runReq.Header.Set("OpenAI-Beta", "assistants=v2")
+
+		runResp, err := http.DefaultClient.Do(runReq)
+		if err != nil {
+			log.Printf("Failed to send run request for user %v: %v", user["username"], err)
+			continue
+		}
+		defer runResp.Body.Close()
+
+		runBody, err := io.ReadAll(runResp.Body)
+		if err != nil {
+			log.Printf("Failed to read run response body for user %v: %v", user["username"], err)
+			continue
+		}
+
+		log.Printf("Run response for user %v: %s", user["username"], string(runBody))
+
+		if runResp.StatusCode != http.StatusOK {
+			log.Printf("Received non-OK run response for user %v: %s", user["username"], runResp.Status)
+			continue
+		}
+	}
 }
