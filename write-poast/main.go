@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
@@ -65,6 +67,121 @@ func createThread(openAPIToken string) (string, error) {
 	}
 
 	return openAIResp.ID, nil
+}
+
+func appendMessageToThread(startDate string, threadID string, openAPIToken string) error {
+	// Parse the start date
+	parsedStartDate, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return fmt.Errorf("failed to parse startDate: %v", err)
+	}
+
+	// Calculate days elapsed
+	daysElapsed := int(time.Since(parsedStartDate).Hours() / 24)
+	messageContent := fmt.Sprintf("day %d", daysElapsed)
+
+	// Prepare the message payload
+	messagePayload := map[string]interface{}{
+		"role": "user",
+		"content": []map[string]interface{}{
+			{
+				"type": "text",
+				"text": messageContent,
+			},
+		},
+	}
+
+	// Marshal the payload to JSON
+	messagePayloadBytes, err := json.Marshal(messagePayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message payload: %v", err)
+	}
+
+	// Create the HTTP request
+	url := fmt.Sprintf("https://api.openai.com/v1/threads/%s/messages", threadID)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(messagePayloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	// Set headers
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openAPIToken))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
+
+	// Send the HTTP request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send message request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and log the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	log.Printf("Message response for thread %s: %s", threadID, string(body))
+
+	// Check for non-OK response
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received non-OK response: %s", resp.Status)
+	}
+
+	log.Printf("Message successfully appended to thread %s", threadID)
+	return nil
+}
+
+func runThread(threadID string, openAPIToken string) error {
+	// Prepare the run payload
+	assistantID := "asst_IUjxjQhjPtaDpKO5yCVs2Ez3"
+	runPayload := map[string]interface{}{
+		"assistant_id": assistantID,
+	}
+
+	// Marshal the payload to JSON
+	runPayloadBytes, err := json.Marshal(runPayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal run payload: %v", err)
+	}
+
+	// Create the HTTP request
+	url := fmt.Sprintf("https://api.openai.com/v1/threads/%s/runs", threadID)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(runPayloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create run request: %v", err)
+	}
+
+	// Set headers
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", openAPIToken))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("OpenAI-Beta", "assistants=v2")
+
+	// Send the HTTP request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send run request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and log the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	log.Printf("Run response for thread %s: %s", threadID, string(body))
+
+	// Check for non-OK response
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received non-OK response: %s", resp.Status)
+	}
+
+	log.Printf("Thread %s successfully started", threadID)
+	return nil
 }
 
 func main() {
@@ -177,7 +294,18 @@ func main() {
 			users[i].ThreadID = threadID
 			fmt.Printf("Thread created and updated for user %s: %s\n", user.Username, threadID)
 		}
-	}
 
+		err := appendMessageToThread(user.StartDate, user.ThreadID, openAPIToken)
+		if err != nil {
+			log.Fatalf("Failed to append message for user %s: %v", user.Username, err)
+		}
+		log.Printf("Successfully sent message for user %s to thread %s", user.Username, user.ThreadID)
+
+		err = runThread(user.ThreadID, openAPIToken)
+		if err != nil {
+			log.Fatalf("Failed to start thread for user %s: %v", user.Username, err)
+		}
+		log.Printf("Successfully started thread for user %s to thread %s", user.Username, user.ThreadID)
+	}
 
 }
