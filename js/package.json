@@ -16,6 +16,6 @@
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "ts-dedent": "^2.2.0",
-    "twitter-api-v2": "^1.18.2"
+    "twitter-api-v2": "^1.19.0"
   }
 }
