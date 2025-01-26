@@ -12,8 +12,7 @@ async function interactWithAssistant() {
       messages: [
         {
           role: "user",
-          content:
-            '"I need to solve the equation `3x + 11 = 14`. Can you help me?"',
+          content: '"Can you help me with "',
         },
       ],
     });
@@ -30,10 +29,11 @@ async function interactWithAssistant() {
 
     if (run.status == "completed") {
       const messages = await client.beta.threads.messages.list(thread.id);
-      for (const message of messages.getPaginatedItems()) {
-        console.log(message);
-        console.log(message.content[0]);
-      }
+      const msg = messages.getPaginatedItems();
+      console.log(msg.length);
+      console.log("--- start ---");
+      console.log(msg[0].content[0]);
+      console.log("--- end ---");
     }
   } catch (error) {
     console.error("Error interacting with the assistant:", error);
