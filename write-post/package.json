@@ -2,13 +2,13 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "openai": "^4.80.1",
-    "openapi": "^1.0.1"
+    "openapi": "^1.0.1",
+    "twitter-api-v2": "^1.19.0"
   },
   "name": "openapi",
   "type": "module",
   "version": "1.0.0",
   "main": "main.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
