@@ -12,7 +12,7 @@ async function interactWithAssistant() {
       messages: [
         {
           role: "user",
-          content: '"Can you help me with "',
+          content: '"What should i do today?"',
         },
       ],
     });
@@ -20,9 +20,11 @@ async function interactWithAssistant() {
     let threadId = thread.id;
     console.log("Created thread with Id: " + threadId);
 
-    const assistantId = "asst_IUjxjQhjPtaDpKO5yCVs2Ez3";
+    const assistantId = "asst_Li7yn9kdsLCnwyMaJZPhPy7m";
     const run = await client.beta.threads.runs.createAndPoll(thread.id, {
       assistant_id: assistantId,
+      // instructions:
+      //   "Do not give the user a name. Answer the question as a command.",
     });
 
     console.log("Run finished with status: " + run.status);
@@ -30,14 +32,18 @@ async function interactWithAssistant() {
     if (run.status == "completed") {
       const messages = await client.beta.threads.messages.list(thread.id);
       const msg = messages.getPaginatedItems();
-      console.log(msg.length);
-      console.log("--- start ---");
-      console.log(msg[0].content[0]);
-      console.log("--- end ---");
+      return msg[0].content[0].text.value;
+      // for (let i = 0; i < msg.length; i++) {
+      //   console.log(i);
+      //   console.log("--- start ---");
+      //   console.log(msg[i].content[0]);
+      //   console.log("--- end ---");
+      // }
     }
   } catch (error) {
     console.error("Error interacting with the assistant:", error);
   }
 }
 
-interactWithAssistant();
+const text = await interactWithAssistant();
+console.log(text);
