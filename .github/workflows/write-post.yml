@@ -1,4 +1,4 @@
-name: Write Daily Post
+name: Run Node.js Script
 
 on:
   schedule:
@@ -6,8 +6,9 @@ on:
   workflow_dispatch: # Allow manual triggering
 
 jobs:
-  run-write-post:
+  run-node-script:
     runs-on: ubuntu-latest
+    environment: Prod # Specify the environment where secrets are stored
 
     steps:
       - name: Checkout Repository
@@ -16,11 +17,25 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "16" # Specify your Node.js version
+          node-version: "16"
 
       - name: Install Dependencies
         run: npm install
-        working-directory: write-post # Navigate to the directory with your script
+        working-directory: write-post
+
+      - name: Debug Environment Variables
+        run: |
+          echo "OPENAPI_TOKEN is ${OPENAPI_TOKEN:0:4}..." # Log first 4 characters
+          echo "X_API_KEY is ${X_API_KEY:0:4}..."
+          echo "X_API_SECRET is ${X_API_SECRET:0:4}..."
+          echo "X_ACCESS_TOKEN is ${X_ACCESS_TOKEN:0:4}..."
+          echo "X_ACCESS_TOKEN_SECRET is ${X_ACCESS_TOKEN_SECRET:0:4}..."
+        env:
+          OPENAPI_TOKEN: ${{ secrets.OPENAPI_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
 
       - name: Run Script
         env:
