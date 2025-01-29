@@ -39,7 +39,7 @@ async function tweetHello(text) {
 
     console.log("Credentials verified, posting tweet...");
     const tweet = await client.v2.post("tweets", {
-      text: "@WagieWeeb " + text,
+      text,
       community_id: communityId,
     });
     console.log("Tweet posted successfully!");
