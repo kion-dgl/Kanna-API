@@ -1,37 +1,33 @@
 name: Write Daily Post
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
   schedule:
     - cron: "0 0 * * *" # Runs daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
 
 jobs:
-  write-post:
+  run-write-post:
     runs-on: ubuntu-latest
-    environment: Prod
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          go-version: "1.23"
+          node-version: "16" # Specify your Node.js version
 
-      - name: Install dependencies
-        working-directory: write-post
-        run: go mod tidy
+      - name: Install Dependencies
+        run: npm install
+        working-directory: write-post # Navigate to the directory with your script
 
-      - name: Write Post
-        working-directory: write-post
+      - name: Run Script
         env:
-          TURSO_DB_URL: ${{ secrets.TURSO_DB_URL }}
-          TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
-        run: go run main.go
-
-      - name: Upload Artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: write-artifact
-          path: artifact.json
+          OPENAPI_TOKEN: ${{ secrets.OPENAPI_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: node index.js
+        working-directory: write-post
