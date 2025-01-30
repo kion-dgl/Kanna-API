@@ -46,5 +46,8 @@ jobs:
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
+          TURSO_DB_URL: ${{ secrets.TURSO_DB_URL }}
+
         run: node index.js
         working-directory: write-post
