@@ -1,4 +1,5 @@
 import { TwitterApi } from "twitter-api-v2";
+import { createClient } from "@libsql/client";
 import OpenAI from "openai";
 import "dotenv/config";
 
@@ -44,6 +45,7 @@ async function tweetHello(text) {
     });
     console.log("Tweet posted successfully!");
     console.log("Tweet ID:", tweet.data.id);
+    return tweet.data.id;
   } catch (error) {
     console.error("Error:", error.message);
     if (error.data) {
@@ -79,18 +81,43 @@ async function interactWithAssistant() {
       const messages = await client.beta.threads.messages.list(thread.id);
       const msg = messages.getPaginatedItems();
       return msg[0].content[0].text.value;
-      // for (let i = 0; i < msg.length; i++) {
-      //   console.log(i);
-      //   console.log("--- start ---");
-      //   console.log(msg[i].content[0]);
-      //   console.log("--- end ---");
-      // }
     }
   } catch (error) {
     console.error("Error interacting with the assistant:", error);
   }
 }
 
+const storePost = async (id, text) => {
+  const turso = createClient({
+    url: process.env.TURSO_DB_URL,
+    authToken: process.env.TURSO_TOKEN,
+  });
+
+  try {
+    // Ensure table exists
+    await turso.execute(`
+          CREATE TABLE IF NOT EXISTS kanna_posts (
+              id TEXT PRIMARY KEY,
+              text TEXT NOT NULL
+          );
+      `);
+
+    // Insert data
+    await turso.execute("INSERT INTO kanna_posts (id, text) VALUES (?, ?)", [
+      id,
+      text,
+    ]);
+
+    console.log("Data inserted successfully!");
+  } catch (error) {
+    console.error("Database error:", error);
+  } finally {
+    turso.close();
+  }
+};
+
 const text = await interactWithAssistant();
 console.log(text);
-tweetHello(text);
+const id = await tweetHello(text);
+console.log(id);
+await storePost(id, text);
