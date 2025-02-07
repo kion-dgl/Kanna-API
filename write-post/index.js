@@ -80,14 +80,15 @@ async function interactWithAssistant() {
     if (run.status == "completed") {
       const messages = await client.beta.threads.messages.list(thread.id);
       const msg = messages.getPaginatedItems();
-      return msg[0].content[0].text.value;
+      const text = msg[0].content[0].text.value.replace(/\*\*/g, "");
+      return { threadId, text };
     }
   } catch (error) {
     console.error("Error interacting with the assistant:", error);
   }
 }
 
-const storePost = async (id, text) => {
+const storePost = async (id, text, threadId) => {
   const turso = createClient({
     url: process.env.TURSO_DB_URL,
     authToken: process.env.TURSO_TOKEN,
@@ -97,16 +98,19 @@ const storePost = async (id, text) => {
     // Ensure table exists
     await turso.execute(`
           CREATE TABLE IF NOT EXISTS kanna_posts (
-              id TEXT PRIMARY KEY,
-              text TEXT NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            post_id TEXT NOT NULL,
+            post_text TEXT NOT NULL,
+            thread_id TEXT NOT NULL,
+            time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
           );
       `);
 
     // Insert data
-    await turso.execute("INSERT INTO kanna_posts (id, text) VALUES (?, ?)", [
-      id,
-      text,
-    ]);
+    await turso.execute(
+      "INSERT INTO kanna_posts (post_id, post_text, thread_id) VALUES (?, ?, ?)",
+      [id, text, threadId],
+    );
 
     console.log("Data inserted successfully!");
   } catch (error) {
@@ -116,8 +120,8 @@ const storePost = async (id, text) => {
   }
 };
 
-const text = await interactWithAssistant();
+const { threadId, text } = await interactWithAssistant();
 console.log(text);
 const id = await tweetHello(text);
 console.log(id);
-await storePost(id, text);
+await storePost(id, text, threadId);
