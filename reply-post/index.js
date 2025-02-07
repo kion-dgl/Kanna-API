@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+import { TwitterApi } from "twitter-api-v2";
 import { createClient } from "@libsql/client";
 import OpenAI from "openai";
 import "dotenv/config";
@@ -35,6 +36,18 @@ const turso = createClient({
   url: process.env.TURSO_DB_URL,
   authToken: process.env.TURSO_TOKEN,
 });
+
+// Create Twitter client with OAuth 1.0a credentials
+const xClient = new TwitterApi({
+  appKey: process.env.X_API_KEY,
+  appSecret: process.env.X_API_SECRET,
+  accessToken: process.env.X_ACCESS_TOKEN,
+  accessSecret: process.env.X_ACCESS_TOKEN_SECRET,
+});
+
+// Verify credentials before tweeting
+console.log("Verifying credentials...");
+await xClient.v2.me();
 
 const getRecentPosts = async () => {
   try {
@@ -91,21 +104,17 @@ const getResponse = async (thread_id, message_text) => {
   const assistantId = "asst_Li7yn9kdsLCnwyMaJZPhPy7m";
 
   try {
-    console.log("step 1");
-    console.log("message text: %s", message_text);
     // Step 1: Append a message to the thread
     await client.beta.threads.messages.create(thread_id, {
       role: "user",
       content: message_text,
     });
 
-    console.log("step 2");
     // Step 2: Run the thread
     const run = await client.beta.threads.runs.create(thread_id, {
       assistant_id: assistantId,
     });
 
-    console.log("step 3");
     // Step 3: Poll until the run is completed
     let runStatus;
     do {
@@ -113,17 +122,13 @@ const getResponse = async (thread_id, message_text) => {
       runStatus = await client.beta.threads.runs.retrieve(thread_id, run.id);
     } while (runStatus.status !== "completed");
 
-    console.log("step 4");
     // Step 4: Retrieve the latest message from the assistant
     const messages = await client.beta.threads.messages.list(thread_id);
-
-    console.log("step 5");
     // Step 5: Find the latest assistant response
     const assistantMessage = messages.data.find(
       (msg) => msg.role === "assistant",
     );
 
-    console.log("step 6");
     return assistantMessage ? assistantMessage.content[0].text.value : null;
   } catch (error) {
     console.error("Error in getResponse:", error);
@@ -131,18 +136,29 @@ const getResponse = async (thread_id, message_text) => {
   }
 };
 
+const postResponse = async (reply_text, tweetIdToReply) => {
+  try {
+    console.log("Credentials verified, posting tweet...");
+    const tweet = await xClient.v2.reply(reply_text, tweetIdToReply);
+    console.log("Tweet posted successfully!");
+    console.log("Tweet ID:", tweet.data.id);
+    return tweet.data.id;
+  } catch (error) {
+    console.error("Error:", error.message);
+    if (error.data) {
+      console.error("API Error Details:", error.data);
+    }
+  }
+};
+
 const posts = await getRecentPosts();
 for (const post of posts) {
   const { post_id, thread_id } = post;
   const replies = await getAllReplies(post_id);
-  console.log("Replies");
-  console.log(replies);
-
   for (const reply of replies) {
-    console.log(reply);
-    const { text } = reply;
+    const { id, text } = reply;
     const res = await getResponse(thread_id, text);
-    console.log(res);
-    break;
+    const replyId = await postResponse(res, id);
+    console.log(replyId);
   }
 }
