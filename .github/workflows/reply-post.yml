@@ -2,7 +2,7 @@ name: Run Node.js Script
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs daily at midnight UTC
+    - cron: "*/30 * * * *" # Runs every 30 minutes
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
-        working-directory: write-post
+        working-directory: reply-post
 
       - name: Run Script
         env:
@@ -32,6 +32,6 @@ jobs:
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
           TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
           TURSO_DB_URL: ${{ secrets.TURSO_DB_URL }}
-
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
         run: node index.js
-        working-directory: write-post
+        working-directory: reply-post

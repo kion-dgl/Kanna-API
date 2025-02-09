@@ -8,6 +8,23 @@ const client = new OpenAI({
   apiKey: process.env["OPENAPI_TOKEN"], // Ensure your API key is set in the environment variables
 });
 
+const turso = createClient({
+  url: process.env.TURSO_DB_URL,
+  authToken: process.env.TURSO_TOKEN,
+});
+
+// Ensure table exists
+await turso.execute(`
+    CREATE TABLE IF NOT EXISTS kanna_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      post_id TEXT NOT NULL,
+      post_text TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      since INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL
+    );
+`);
+
 async function tweetHello(text) {
   try {
     // Debug: Check if env variables are loaded (will show first few characters)
@@ -36,12 +53,12 @@ async function tweetHello(text) {
     await client.v2.me();
 
     // Weebfit Community
-    const communityId = "1882640483719249956";
+    // const communityId = "1882640483719249956";
 
     console.log("Credentials verified, posting tweet...");
     const tweet = await client.v2.post("tweets", {
       text,
-      community_id: communityId,
+      // community_id: communityId,
     });
     console.log("Tweet posted successfully!");
     console.log("Tweet ID:", tweet.data.id);
@@ -89,23 +106,7 @@ async function interactWithAssistant() {
 }
 
 const storePost = async (id, text, threadId) => {
-  const turso = createClient({
-    url: process.env.TURSO_DB_URL,
-    authToken: process.env.TURSO_TOKEN,
-  });
-
   try {
-    // Ensure table exists
-    await turso.execute(`
-          CREATE TABLE IF NOT EXISTS kanna_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-            post_id TEXT NOT NULL,
-            post_text TEXT NOT NULL,
-            thread_id TEXT NOT NULL,
-            time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
-          );
-      `);
-
     // Insert data
     await turso.execute(
       "INSERT INTO kanna_posts (post_id, post_text, thread_id) VALUES (?, ?, ?)",

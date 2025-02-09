@@ -52,7 +52,7 @@ await xClient.v2.me();
 const getRecentPosts = async () => {
   try {
     const selectSql = `
-      SELECT id, post_id, post_text, thread_id, time
+      SELECT id, post_id, post_text, thread_id, since
       FROM kanna_posts
       ORDER BY time DESC
       LIMIT 10`;
@@ -64,7 +64,7 @@ const getRecentPosts = async () => {
   }
 };
 
-const getAllReplies = async (post_id) => {
+const getAllReplies = async (post_id, since) => {
   let replies = [];
   let nextCursor = null;
   const options = {
@@ -72,9 +72,17 @@ const getAllReplies = async (post_id) => {
     headers: { "X-API-Key": process.env.TWITTER_API_KEY },
   };
 
+  const updateSql = `
+    UPDATE kanna_posts
+    SET since = (strftime('%s', 'now'))
+    WHERE post_id = ?
+  `;
+
+  await turso.execute(updateSql, [post_id]);
+
   do {
     const url =
-      `https://api.twitterapi.io/twitter/tweet/replies?tweetId=${post_id}` +
+      `https://api.twitterapi.io/twitter/tweet/replies?tweetId=${post_id}&sinceTime=${since}` +
       (nextCursor ? `&cursor=${nextCursor}` : "");
 
     try {
@@ -97,7 +105,10 @@ const getAllReplies = async (post_id) => {
     }
   } while (nextCursor);
 
-  return replies;
+  const filteredPosts = replies.filter(
+    (post) => post.author.userName.toLowerCase() !== "waifufitness",
+  );
+  return filteredPosts;
 };
 
 const getResponse = async (thread_id, message_text) => {
@@ -153,8 +164,8 @@ const postResponse = async (reply_text, tweetIdToReply) => {
 
 const posts = await getRecentPosts();
 for (const post of posts) {
-  const { post_id, thread_id } = post;
-  const replies = await getAllReplies(post_id);
+  const { post_id, since, thread_id } = post;
+  const replies = await getAllReplies(post_id, since);
   for (const reply of replies) {
     const { id, text } = reply;
     const res = await getResponse(thread_id, text);
