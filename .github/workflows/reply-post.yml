@@ -2,7 +2,7 @@ name: Reply Action
 
 on:
   schedule:
-    - cron: "0,30 * * * *" # Runs every 30 minutes
+    - cron: "30 * * * *" # Runs every 30 minutes
   workflow_dispatch: # Allow manual triggering
 
 jobs:
